@@ -58,9 +58,11 @@ dist_Dp_growth = lapply(seq(0, 1, by = 0.2), function(i) calculate_Dp_matrix_byD
 
 
 clus = function(dissimilarite, nb_class = NULL, dist = TRUE){
-  # Clus pratique une CAH avec linkage ward 
-  # dissimilarité : matrice de distance, matrice des individus ou une liste de matrices de distances ou individus 
-  # dist : indique si ce qu'on prends en entrer c'est une distance ou une liste de distance
+  # Réalise une CAH (linkage de Ward) et renvoie la partition
+  # dissimilarité : matrice de distances, matrice d'individus
+  #                 ou liste de matrices de distances / matrices d'individus
+  # dist         : indique si l'entrée est une distance (ou une liste de distances)
+  
   
   if(is.null(nb_class)){
     stop("Spécifier le nombre de classe")

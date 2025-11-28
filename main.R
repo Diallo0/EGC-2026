@@ -1,6 +1,6 @@
 #------------------------------ Données rélles labellisées -------------------------------
 
-library(fds) # données fonctionnelles non labellisées
+library(fds)
 library(magrittr)
 library(ggplot2)
 library(tidyverse)
@@ -22,16 +22,16 @@ data("tecator")
 # Données de croissance (garçons vs filles)
 data("growth")
 
-
-# Transformation de ces données en un tableau d'individus avec les temps valeurs des colonnes 
-# id, class, temps de mesures
+# ------------ Transformation des données en un tableau d'individus ----------------------------------
+# Les temps de mesure sont représentés par des colonnes
+# Colonnes : identifiant, classe, instants de mesure
 
 # Phonème
 data_phoneme = cbind(id = 1:length(phoneme$classlearn), class = phoneme$classlearn, 
                      y = phoneme$learn$data)%>%as.data.frame()
 colnames(data_phoneme) = c("id", "class", as.character(phoneme$learn$argvals))
 
-# tecator avec une definition de fat >= 20% 
+# tecator avec 2 groupes selon ---> fat >= 20% 
 data_tecator = cbind(id = 1:dim(tecator$y)[1], class = ifelse(tecator$y$Fat >= 20, 1, 0), 
                      y = tecator$absorp.fdata$data)%>%as.data.frame()
 colnames(data_tecator) = c("id", "class", as.character(tecator$absorp.fdata$argvals))
@@ -44,26 +44,26 @@ data_growth = cbind(id = 1:length(class), class, data_growth)%>%as.data.frame()
 
 
 
-#------------------- Simulations data -----------------------------------------------------------------
+#------------------- Simulations  -----------------------------------------------------------------
 
 
 f_list = list(
-  # 1) périodique bas fréquence 
+  # 1) f1
   function(t) {
     0.9 * cos(2 * pi * t)
   },
   
-  # 2) périodique haute fréquence 
+  # 2) f2
   function(t) {
     0.85 * sin(4 * pi * t + 0.4)
   },
   
-  # 3) pic gaussien (un seul bump, centré en 0.3)
+  # 3) f3
   function(t) {
     0.95 * exp(-((t - 0.3)^2) / (2 * 0.07^2)) - 0.15
   },
   
-  # 4) linéaire 
+  # 4) f4
   function(t) {
     -0.9 + 1.8 * t
   }
@@ -96,11 +96,12 @@ sim_condition_I = function(n_per_clus, t, f_list, nb_cluster = 4){
 }
 
 
-## ------------------ Condition 2 (effets aléatoires identique pour tous les clusters) ------------------
+## ------------------ Scénario II (effets aléatoires identique pour tous les clusters) ------------------
 
-# On a un effet aléatoire mais l'aléa est identique pour tous les clusters
-# Les individus au sein d'un même cluster présente de la variabilité 
-# qui est identique pour tous les clusters
+# On considère un effet aléatoire identique pour tous les clusters
+# Les individus d'un même cluster présentent une variabilité
+# et cette variabilité intra-cluster est supposée identique pour tous les clusters
+
 
 
 
@@ -143,7 +144,7 @@ sim_condition_II = function(n_per_clus, t, f_list, nb_cluster = 4){
 
 
 
-##----------------------------------- Condtition III (effets aléatoires variables dans les clusters) -----------------------
+##----------------------------------- Scénario III (effets aléatoires  clusters-spécifique) -----------------------
 
 sim_condition_III = function(n_per_clus, t, f_list, nb_cluster = 4){
   
@@ -167,13 +168,11 @@ sim_condition_III = function(n_per_clus, t, f_list, nb_cluster = 4){
   )
   
   
-  
-  # 
   # Génération des données
   sim_data = do.call(rbind, lapply(1:nb_cluster, function(k) {
     do.call(rbind, lapply(1:n_per_clus, function(i) {
       
-      # Tirage des coefficients aléatoires pour ce cluster
+      # Tirage des coefficients aléatoires 
       b_ik = mvrnorm(1, mu = c(0, 0, 0), Sigma = Sigma_list[[k]])
       
       # Calcul du terme aléatoire r_ik(t)
@@ -203,9 +202,9 @@ sim_condition_III = function(n_per_clus, t, f_list, nb_cluster = 4){
 #---------------------  Lissage MCP -----------------------------------------------------
 
 liss = function(df, l_grille = 10^seq(-5, 5, length.out = 1000), D = 50){
-  # lissage par B-splines avec noeuds placer sur les quantiles des observations
-  # df : matrix ou dataframe : chaque ligne représente une courbe 
-  # D : nombre de fonctions de bases
+  # Lissage par B-splines avec des nœuds placés sur les quantiles des observations
+  # df : matrice ou data.frame où chaque ligne représente une courbe
+  # D  : nombre de fonctions de base
  
   t = as.numeric(colnames(df)) 
   q = quantile(t)
@@ -233,7 +232,7 @@ liss = function(df, l_grille = 10^seq(-5, 5, length.out = 1000), D = 50){
 # ---------------- Approximation de Riemman (D0, D1, Dp) -----------------------------
 
 
-##------------------ D0 par -----------------------------------
+##------------------ D0  -----------------------------------
 calculate_D0_matrix_parallel = function(fd_list, fine_grid) {
   
   n = length(fd_list)
@@ -289,7 +288,7 @@ calculate_D0_matrix_parallel = function(fd_list, fine_grid) {
 
 
 
-## -------------------------------- D1-par -------------------------------------
+## -------------------------------- D1  -------------------------------------
 calculate_D1_matrix_parallel = function(fd_list, fine_grid) {
   n = length(fd_list)
   D1_matrix = matrix(0, nrow = n, ncol = n)
@@ -340,7 +339,7 @@ calculate_D1_matrix_parallel = function(fd_list, fine_grid) {
 
 
 
-## -------------------------------- Dp-par -------------------------------------
+## -------------------------------- Dp -------------------------------------
 
 # partir des de d1 et d0
 
@@ -364,12 +363,17 @@ calculate_Dp_matrix_byD0D1 = function(D0_matrix, D1_matrix, omega, STANDARDIZE =
 
 
 
+
 # -------------------- Distances pondérées (via ACPF) -------------------------------
 
 
 ## ------------------ sans re-affectation ------------------------------------------
 
 pca_sans_reaffect = function(data_liss, t,  pve = 0.99){
+  # data_liss : données lissées sous forme de liste de fd (données fonctionnelles)
+  # t         : vecteur des temps de mesure
+  # pve       : pourcentage de variabilité conservée par l'ACPF
+  
   
   fdobj = fd(sapply( 1:length(data_liss), function (i) data_liss[[i]]$coefs), data_liss[[1]]$basis)
   fdobj_deriv = deriv.fd(fdobj, deriv = 1)
@@ -377,7 +381,7 @@ pca_sans_reaffect = function(data_liss, t,  pve = 0.99){
   pca_res = pca.fd(fdobj, nharm = 50, centerfns = TRUE)
   pca_res_deriv = pca.fd(fdobj_deriv, nharm = 50, centerfns = TRUE)
   
-  # prendre le maximum de composante principale entre les deux pour expliquer pve% de la variabilité des données
+  # nombre de composantes gardées
   nb1 = which(cumsum(pca_res$varprop)>= pve)[1] 
   nb2 = which(cumsum(pca_res_deriv$varprop)>= pve)[1]
   
@@ -388,7 +392,9 @@ pca_sans_reaffect = function(data_liss, t,  pve = 0.99){
 
 
 pca_Dp = function(pca_res, omega = 0.5){
-  # Donne la dissimilarité pour cette méthode 
+  # Donne la matrice de dissimilarité 
+  # pca_res : retour de la fonction pca_sans_reaffect
+  # omega   : valeur de la pondération 
   coords = pca_res$coords
   coords_deriv = pca_res$coords_deriv
   
@@ -448,9 +454,10 @@ source("./Yu-main/SPFConlyder.R")
 
 
 Ari_distance_yu = function(data, wt = 0.5){
-  # Donne l'ARI de la méthode Yu et al. 2025 pour 
-  # data : contient id et class sur les 2 premiers colonnes
-  # ensuite les colonnes de t 
+  # Calcule l'ARI de la méthode Yu et al. (2025)
+  # data : tableau avec id et class dans les deux premières colonnes,
+  #        suivies des colonnes de temps t
+  # wt   : la pondération (=:omega)
   
   t = as.numeric(colnames(data)[-(1:2)])
   # calcul des derivées avec fda.usc::fdata
@@ -472,11 +479,10 @@ Ari_distance_yu = function(data, wt = 0.5){
 # ---------------------- ClusterMLD (Zhou 2023)---------------------------------------------
 
 clusteringMLD = function(data, choix_class = "CH", No.Class){
-  # Donne la partition pour la méthode CAH fonctionnelle
+  # Renvoie la partition obtenue par la CAH fonctionnelle
   # choix_class : méthode de coupure du dendrogramme
-  # No.Class : nombre de clusters à priori
+  # No.Class    : nombre de clusters fixé a priori
   
-
   data_t = as.matrix(data%>%t())
   data_long = cbind(t = as.numeric(colnames(data)), data_t)%>%as.data.frame()
   colnames(data_long) = c("t", 1:dim(data)[1])
@@ -527,13 +533,18 @@ clusteringMLD = function(data, choix_class = "CH", No.Class){
 
 k_means_dw = function(X, X_deriv, K, method = "ACPF", omega = 0.5, max_iter = 100, nb_init = 20, fine_grid = NULL){
 
-  # k-means integrant la distance pondérée sur les scores d'une ACP fonctionnelle
-  # X : données de l'ACPF sur les fonctions lissées ou evaluation sur une grille fine des données lissées
-  # X_deriv : données de l'ACPF sur la dérivée des fonctions evaluation sur une grille fine des données de la dérivée des fonctions 
-  # K : nombre de classe
-  # method : ACPF ou riemann
-  # max_iter : nombre maximale d'itération
-  # fine_grid : grille fine  
+  # k-means intégrant une distance pondérée 
+  # X        : scores de l'ACPF sur les fonctions lissées
+  #            ou évaluations des fonctions lissées sur une grille fine
+  # X_deriv  : scores de l'ACPF sur les dérivées
+  #            ou évaluations des dérivées sur une grille fine
+  # K        : nombre de classes
+  # method   : approches pour la distance pondérée, "ACPF" ou "riemann"
+  # omega    : valeur de la pondération
+  # max_iter : nombre maximal d'itérations
+  # nb_init  : nombre d'initialisation des centroïdes
+  # fine_grid: grille fine d'évaluation
+  
   
   # Normalisation min-max de chaque matrice
   X_min = min(X)
@@ -560,14 +571,10 @@ k_means_dw = function(X, X_deriv, K, method = "ACPF", omega = 0.5, max_iter = 10
   
   
   
-  # Initialisation des centres
-  ## Faire une boucle pour différentes initialisation : On conserve la classe avec l'inertie 
-  ## la plus petite
-  
+  # Faire une boucle pour stocker les clusters et les inerties
   list_inertie  = numeric(nb_init)
   list_clusters = vector("list", nb_init)
   
-  # Faire une boucle pour stocker les cluster et les inerties
   for (init in 1:nb_init) {
     
     # Initialisation aléatoire des centres
@@ -619,14 +626,14 @@ k_means_dw = function(X, X_deriv, K, method = "ACPF", omega = 0.5, max_iter = 10
     }
     
     # inertie de l'initialisation
-    inertie_init = sum(dmat_sq[cbind(1:n, clusters)]) # inertie totale
+    inertie_init = sum(dmat_sq[cbind(1:n, clusters)])
     list_inertie[init]      = inertie_init
     list_clusters[[init]]   = clusters
     
   }
   
   # choix inertie minimale
-  best_idx = which.min(list_inertie)
+  best_idx = which.min(list_inertie) # idx de la meilleure partition
   
   
   return(list(cluster = list_clusters[[best_idx]], inertie = list_inertie[[best_idx]]))
@@ -634,7 +641,26 @@ k_means_dw = function(X, X_deriv, K, method = "ACPF", omega = 0.5, max_iter = 10
 }
 
 
-
+# --------------------------------- PAM clustering -------------------------------------------------------------------------------------
+pam_clus = function(list_dist, class_true){
+  # fournit l'ARI et silhouette de pam
+  if(is.list(list_dist)){
+    classes = lapply(1:length(list_dist), function (i) cluster::pam(list_dist[[i]], k = unique(class_true)%>%length(), diss = T)$clustering)
+    # ARI 
+    ARI = sapply(1:length(classes), function(i) mclust::adjustedRandIndex(classes[[i]], class_true))
+    # SIL
+    SIL = sapply(1:length(classes), function(i) cluster::silhouette(classes[[i]], dist = list_dist[[i]])[, 3]%>%mean())
+    
+  } else{
+    classe = cluster::pam(list_dist, k = unique(class_true)%>%length(), diss = T)$clustering
+    # ARI
+    ARI = mclust::adjustedRandIndex(classe, class_true)
+    #SIL 
+    SIL = cluster::silhouette(classe, dist = list_dist)[, 3]%>%mean()
+  }
+  
+  return(list(ARI = ARI, SIL = SIL))
+}
 
 
 #--------------- Autres (visuels) ----------------------------------------------
@@ -714,29 +740,35 @@ gg_f_f_prime = function(data, data_liss, fine_grid){
     geom_line(linewidth = 0.8, alpha = 0.7) +
     
     # Facettes avec labels plus lisibles et un peu d'espace entre elles
-    facet_wrap(~type, scales = "free_y", ncol = 2) +
+    facet_wrap(~factor(type, labels = c("(a)", "(b)")), scales = "free_y", ncol = 2) +
     
     # Amélioration des titres et légendes
     labs(
-      title = "Prétraitement par lissage MCP",
-      subtitle = "fonctions et fonctions dérivées évaluées sur une grille fine",
-      x = "Time",
-      y = "Values",
-      color = "Classe"
+      #title = "Prétraitement par lissage MCP",
+      #subtitle = "fonctions et fonctions dérivées évaluées sur une grille fine",
+      x = "t",
+      y = "Valeurs des courbes au temps t",
+      color = "Classes"
     ) +
     
     # Thème minimal et moderne
     theme_bw(base_size = 14) +
     theme(
-      plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
-      plot.subtitle = element_text(hjust = 0.5, size = 12),
-      axis.text.x = element_text(angle = 0, hjust = 1),
+      #plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
+      #plot.subtitle = element_text(hjust = 0.5, size = 12),
+      axis.title = element_text(size = 14, face = "bold"),
+      axis.text      = element_text(size = 14, face = "bold"),
       legend.position = "bottom",
+      legend.title   = element_text(size = 14, face = "bold"),      # titre légende
+      legend.text    = element_text(size = 12, face = "bold"),      # texte légende
       panel.grid.major = element_line(color = "gray80"),
-      panel.grid.minor = element_line(color = "gray90")
-    ) +
-    
-    # Palette de couleurs plus harmonieuse
+      panel.grid.minor = element_line(color = "gray90"),
+      strip.background = element_rect(fill = "gray80", colour = "black"),  # fond facet
+      strip.text       = element_text(size = 14, face = "bold")           # texte facet
+    )+
+    guides(color = guide_legend(override.aes = list(size = 3)))+
+  
+    # Palette de couleurs
     scale_color_brewer(palette = "Set1")
   
   return(gg)

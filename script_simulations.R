@@ -1,7 +1,7 @@
 source("./main.R")
 
 
-#----------------------------------- data simulées  -------------------------------------------------------------------
+#----------------------------------- Exemple de simulation  -------------------------------------------------------------------
 t = seq(0, 1, length.out = 20)
 
 data_condI = sim_condition_I(n_per_clus = 100, t, f_list)
@@ -34,9 +34,8 @@ gg_f_f_prime(data_condII, data_condII_liss, fine_grid_t)
 gg_f_f_prime(data_condIII, data_condIII_liss, fine_grid_t)
 
 
-# -------------------------- Simulation des scénarios --------------------------------------------------------------------
+# -------------------------- Fonction de simulation des scénarios --------------------------------------------------------------------
 
-# simulation
 Simulation = function(t){list(
   sim_condition_I(n_per_clus = 100, t, f_list),
   sim_condition_II(n_per_clus = 100, t, f_list),
@@ -47,9 +46,12 @@ Simulation = function(t){list(
 
 
 # ----------- k-means Riemann pour un seul scénario ----------------
+
 kmeans_clus_Riemann_sim = function(list_dist, liss_list, fine_grid, class_true){
-  # list_dist : liste des distance dans un scénarios pour les oméga : calcul de silhouette
-  # liss_list : list des données lissées pour ce scénario
+  # list_dist : liste des matrices de distances pour un scénario donné (valeurs d’omega),
+  #             utilisée pour le calcul de l'indice de silhouette
+  # liss_list : liste des données lissées correspondant à ce scénario
+  
   
   # X et X_deriv sur grille fine
   X = t(sapply(1:length(liss_list), function(i) eval.fd(fine_grid, liss_list[[i]])))
@@ -82,9 +84,12 @@ kmeans_clus_Riemann_sim = function(list_dist, liss_list, fine_grid, class_true){
 }
 
 # ----------- k-means ACPF pour un seul scénario -------------------
+
 kmeans_clus_ACPF_sim = function(list_dist, pca_res, class_true){
-  # list_dist : pour silhouette 
-  # pca_res : l'acpf
+  # list_dist : liste des matrices de distances utilisée pour le calcul de la silhouette
+  # pca_res   : résultats de l'ACPF
+  
+  
   omegas = seq(0, 1, length.out = length(list_dist))
   
   classes = lapply(seq_along(omegas), function(j){
@@ -112,11 +117,11 @@ kmeans_clus_ACPF_sim = function(list_dist, pca_res, class_true){
 
 
 
-# ------------------------- fonction d'execution pour une liste de 3 tableaux des scénarios ------------------------------------
+# ------------------------- fonction d'éxecution pour une liste de 3 tableaux des scénarios ------------------------------------
 
 Execution_distance_pond = function(t, sim){
-  # Execution des différentes appproches pour les trois scénarios 
-  # sim : est une liste des tableaux de données des 3 scénarios de simulations
+  # Exécute les différentes approches de clustering pour les trois scénarios
+  # sim : liste des tableaux de données correspondant aux trois scénarios de simulation
   
   liss = lapply(1:3, function(i) liss(sim[[i]][, -c(1,2)]))
   
@@ -482,9 +487,9 @@ Execution_distance_pond = function(t, sim){
 
 
 f_arranger_ARI = function(ex_dist_pond){
-  # arrange les resultats sous forme de matrices 3 x 6
-  # lignes : 3 conditions de simulation
-  # colonnes : omega = (0, 0.2, 0.4, 0.6, 0.8, 1)
+  # Arrange les résultats sous forme de matrice 3 x 6
+  # lignes   : 3 conditions de simulation
+  # colonnes : valeurs de omega = (0, 0.2, 0.4, 0.6, 0.8, 1)
   
   ## ---------------- CAH : Riemann ---------------------------------
   Ari_Riemann = matrix(NA, ncol = 6 , nrow = 3)
@@ -546,8 +551,9 @@ f_arranger_ARI = function(ex_dist_pond){
 
 
 f_arranger_silhouette = function(ex_dist_pond){
-  # lignes  : 3 conditions
-  # colonnes: omega = (0, 0.2, 0.4, 0.6, 0.8, 1)
+  # lignes   : 3 scénarios de simulation
+  # colonnes : valeurs de omega = (0, 0.2, 0.4, 0.6, 0.8, 1)
+  
   
   ## --------------- CAH : Riemann ---------------------------------
   sil_Riemann = matrix(NA, ncol = 6, nrow = 3)
@@ -610,8 +616,7 @@ f_arranger_silhouette = function(ex_dist_pond){
 
 
 CLUS_RES = function(t, sim){
-  
-    #sim = Simulation(t)
+    # Résultats pour une simulation
     ex_dist_pond = Execution_distance_pond(t, sim = sim)
     
     ARI = f_arranger_ARI(ex_dist_pond) 
@@ -652,12 +657,13 @@ CLUS_RES = function(t, sim){
 # -------------------------- Application sur 5 simulations ----------------------------------------
 # Voir le dossier Data (100 premiers) sont les données pour les resultats soumis à EGC2026
 Tableau_sim = readRDS("./Data/List_data_simu.rds")
-# 25 premiers listes
-res = lapply(1:25, function(i) CLUS_RES(t, Tableau_sim[[i]]))
+# Tourner sur 2 simulations 
+res = lapply(1:2, function(i) CLUS_RES(t, Tableau_sim[[i]]))
 # ------------------- Synthétiser les résultats ----------------------------------------------------------
 
 Extraction_des_res = function(res){
-  # res : liste de résultats de CLUS_RES
+  # Calcul des moyennes et des écarts-types des indices  
+  # res : liste de résultats de CLUS_RES (plusieurs simulations)
   
   # ARI clusterMLD
   ARI_clusterMLD = do.call(cbind, lapply(res, function(x) x$Ari_clusterMLD))
@@ -764,16 +770,6 @@ Extraction_des_res = function(res){
 
 # resultats 
 Extraction_des_res(res)
-
-
-
-
-
-
-
-
-
-
 
 
 
